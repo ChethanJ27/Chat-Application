@@ -1,0 +1,50 @@
+version: "3"
+
+volumes:
+  mysql_data:
+
+services:
+  #db
+  mysql:
+    hostname: mysql
+    image: mysql:5.7
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_HOST=localhost
+      - MYSQL_PORT=3306
+      - MYSQL_ROOT_HOST=%
+      - MYSQL_DATABASE=recipe_db
+      - MYSQL_USER=dev
+      - MYSQL_PASSWORD=dev
+      - MYSQL_ROOT_PASSWORD=MysqlPassword@10
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  engine:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./app:/app
+    command:
+      bash -c "python manage.py migrate &&
+      python manage.py runserver 0:8080"
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=recipe_db
+      - DB_USER=dev
+      - DB_PASS=dev
+    depends_on:
+      - mysql
+    expose:
+      - 8080
+
+  # message broker
+  redis:
+    restart: always
+    image: redis:latest
+    expose:
+      - "6389"

@@ -1,0 +1,8 @@
+Django>=4.0.1,<4.1
+mysqlclient==2.1.1
+mysql-connector
+daphne
+channels
+# Redis support
+redis
+django-redis==5.2.0
