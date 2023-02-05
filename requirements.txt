@@ -6,3 +6,4 @@ channels
 # Redis support
 redis
 django-redis==5.2.0
+channels_redis
