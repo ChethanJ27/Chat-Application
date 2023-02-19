@@ -1,26 +1,25 @@
 version: "3"
 
 volumes:
-  mysql_data:
+  postgres_data:
 
 services:
   #db
-  mysql:
-    hostname: mysql
-    image: mysql:5.7
-    command: --default-authentication-plugin=mysql_native_password
+  postgres:
+    hostname: postgres
+    image: postgres
     environment:
-      - MYSQL_HOST=localhost
-      - MYSQL_PORT=3306
-      - MYSQL_ROOT_HOST=%
-      - MYSQL_DATABASE=recipe_db
-      - MYSQL_USER=dev
-      - MYSQL_PASSWORD=dev
-      - MYSQL_ROOT_PASSWORD=MysqlPassword@10
+      - POSTGRES_HOST=
+      - POSTGRES_PORT=5432
+      - POSTGRES_ROOT_HOST=%
+      - POSTGRES_DATABASE=chat_db
+      - POSTGRES_USER=dev
+      - POSTGRES_PASSWORD=dev_password   # set a non-empty value for the POSTGRES_PASSWORD variable
+      - POSTGRES_ROOT_PASSWORD=MysqlPassword@10
     ports:
-      - "3307:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgres
 
   engine:
     build:
@@ -33,12 +32,12 @@ services:
       bash -c "python manage.py migrate &&
       python manage.py runserver 0:8080"
     environment:
-      - DB_HOST=mysql
-      - DB_NAME=recipe_db
+      - DB_HOST=postgres
+      - DB_NAME=chat_db
       - DB_USER=dev
       - DB_PASS=dev
     depends_on:
-      - mysql
+      - postgres
     expose:
       - 8080
 

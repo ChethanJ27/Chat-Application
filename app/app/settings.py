@@ -69,7 +69,7 @@ TEMPLATES = [
     },
 ]
 
-# WSGI_APPLICATION = 'app.wsgi.application'
+WSGI_APPLICATION = 'app.wsgi.application'
 
 ASGI_APPLICATION = 'app.asgi.application'
 
@@ -85,8 +85,12 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'chat_db',
+        'USER': 'dev',
+        'PASSWORD': 'dev_password',
+        'HOST': 'postgres',
+        'PORT': '5432',
     }
 }
 
