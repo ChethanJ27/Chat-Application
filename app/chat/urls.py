@@ -6,5 +6,6 @@ from . import views
 
 urlpatterns = [
     path("", views.index, name="index"),
-    path("<str:room_name>/", views.room, name="room")
+    path("<str:room_name>/", views.room, name="room"),
+    path("history/<str:room_name>/",views.History.as_view(),name="history"),
 ]
