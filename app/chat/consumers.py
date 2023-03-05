@@ -103,9 +103,12 @@ class ChatConsumer(WebsocketConsumer):
     # Receive message from room group
     def chat_message(self, event):
         message = event["message"]
-
         # Send message to WebSocket
         self.send(text_data=json.dumps({"message": message}))
+        from .redis import publish_to_channel
+        # Publish message to Redis
+        publish_to_channel(json.dumps({"message": message, "user": self.user, "room_group_name": self.room_group_name}))
+
 
     def user_join(self, event):
         self.send(text_data=json.dumps(event))
