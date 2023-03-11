@@ -27,8 +27,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room, created = await sync_to_async(Room.objects.get_or_create)(name=self.room_name)
         
         # Extract the token from the query string
-        token = self.scope["query_string"].decode().split("=")[1]
-        
+        # token = self.scope["query_string"].decode().split("=")[1]
+        global tokenIndex
+        tokens = ["e5e775f6d3220629a3184773037b325fc832c2bb","9c2b613f19abba8c3342b03e0f4c8c6441ecd241"]
+        token = tokens[tokenIndex]
         print('tokenIndex',tokenIndex,token)
         tokenIndex = (tokenIndex + 1) % len(tokens)
         print(tokenIndex)
@@ -91,9 +93,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': message,
             'username': username
         }))
-        from .redis import publish_to_channel
-        # Publish message to Redis
-        publish_to_channel(json.dumps({"message": message, "user": self.user, "room_group_name": self.room_group_name}))
         print('send method completed')
 
 
