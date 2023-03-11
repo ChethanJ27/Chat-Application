@@ -1,14 +1,17 @@
 # chat/consumers.py
 import json
 
-from asgiref.sync import async_to_sync
-from channels.generic.websocket import WebsocketConsumer
+from asgiref.sync import async_to_sync, sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer, WebsocketConsumer
+from channels.db import database_sync_to_async
 from .models import Room, Message
 from django.contrib.auth.models import User
 from .utils import createRoomId
+from rest_framework.authtoken.models import Token
 
+tokenIndex = 0
 
-class ChatConsumer(WebsocketConsumer):
+class ChatConsumer(AsyncWebsocketConsumer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
@@ -18,44 +21,35 @@ class ChatConsumer(WebsocketConsumer):
         self.user = None
         self.user_inbox = None
 
-    def connect(self):
+    async def connect(self):
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
         self.room_group_name = f'chat_{self.room_name}'
-        self.room, created = Room.objects.get_or_create(name=self.room_name)
-        self.user = self.scope['user']
+        self.room, created = await sync_to_async(Room.objects.get_or_create)(name=self.room_name)
+        
+        # Extract the token from the query string
+        token = self.scope["query_string"].decode().split("=")[1]
+        
+        print('tokenIndex',tokenIndex,token)
+        tokenIndex = (tokenIndex + 1) % len(tokens)
+        print(tokenIndex)
+        
+        # Authenticate the user
+        self.user = await self.get_user(token)
+        if self.user is None:
+            # Close the WebSocket connection if authentication fails
+            await self.close()
+        
 
-        async_to_sync(self.channel_layer.group_add)(
+        await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name,
         )
-
-        # self.user_inbox = f'inbox_{self.user.username}'
+        print('user added to group',self.room_group_name,self.channel_name)
         
-        self.accept()
-
-        # send the user list to the newly joined user
-        self.send(json.dumps({
-            'type': 'user_list',
-            'users': [user.username for user in self.room.online.all()],
-        }))
-
-        if self.user.is_authenticated:
-            # send the join event to the room
-            async_to_sync(self.channel_layer.group_send)(
-                self.room_group_name,
-                {
-                    'type': 'user_join',
-                    'user': self.user.username,
-                }
-            )
-            print("authenticated")
-            self.room.online.add(self.user)
-
-            # create a user inbox for private messages
-            async_to_sync(self.channel_layer.group_add)(
-                self.user_inbox,
-                self.channel_name,
-            )
+        # Accept the WebSocket connection
+        await self.accept()
+        print('connect method completed')
+        
 
     def disconnect(self, close_code):
         async_to_sync(self.channel_layer.group_discard)(
@@ -63,51 +57,44 @@ class ChatConsumer(WebsocketConsumer):
             self.channel_name,
         )
         
-        if self.user.is_authenticated:
-            # send the leave event to the room
-            async_to_sync(self.channel_layer.group_send)(
-                self.room_group_name,
-                {
-                    'type': 'user_leave',
-                    'user': self.user.username,
-                }
-            )
-            self.room.online.remove(self.user)
-
-            # delete the user inbox for private messages
-            async_to_sync(self.channel_layer.group_discard)(
-                self.user_inbox,
-                self.channel_name,
-            )
 
      # Receive message from WebSocket
-    def receive(self, text_data):
+    async def receive(self, text_data):
+        print('in recieve method')
         text_data_json = json.loads(text_data)
         message = text_data_json['message']
 
-
-        # if not self.user.is_authenticated:
-        #     return
+        if not self.user.is_authenticated:
+            return
         
+        print('before group send',self.user.email)
+        print('group name',self.channel_layer)
         # Send message to room group
-        async_to_sync(self.channel_layer.group_send)(
-            self.room_group_name, 
+        await self.channel_layer.group_send(
+            self.room_group_name,
             {
-                "type": "chat_message",
-                "user": self.user.username,
-                "message": message
+                'type': 'chat_message',
+                'message': message,
+                'username': self.scope['user'].username
             }
         )
-        Message.objects.create(user=self.user, room= self.room, content=message)
+        print('before msg db save')
+        await database_sync_to_async(Message.objects.create)(user=self.user, Room= self.room, content=message)
+        print('recieve method completed')
 
     # Receive message from room group
-    def chat_message(self, event):
-        message = event["message"]
-        # Send message to WebSocket
-        self.send(text_data=json.dumps({"message": message}))
+    async def chat_message(self, event):
+        print('in send method')
+        message = event['message']
+        username = event['username']
+        await self.send(text_data=json.dumps({
+            'message': message,
+            'username': username
+        }))
         from .redis import publish_to_channel
         # Publish message to Redis
         publish_to_channel(json.dumps({"message": message, "user": self.user, "room_group_name": self.room_group_name}))
+        print('send method completed')
 
 
     def user_join(self, event):
@@ -116,11 +103,15 @@ class ChatConsumer(WebsocketConsumer):
     def user_leave(self, event):
         self.send(text_data=json.dumps(event))
 
-    def private_message(self, event):
-        self.send(text_data=json.dumps(event))
-
-    def private_message_delivered(self, event):
-        self.send(text_data=json.dumps(event))
+    @database_sync_to_async
+    def get_user(self, token):
+        try:
+            # Get the user associated with the token
+            token_obj = Token.objects.get(key=token)
+            user = User.objects.get(id=token_obj.user_id)
+            return user
+        except Token.DoesNotExist:
+            return None
 
 
 class PersonalChats(WebsocketConsumer):

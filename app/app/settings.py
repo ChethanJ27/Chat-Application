@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-ndk4q)k6-ty%*a4g&3@&fa%mhix)pd_zb8v!vuyiy^2g0o3%gj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost','0.0.0.0']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -48,12 +48,15 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'app.urls'
+
+CORS_ORIGIN_ALLOW_ALL = True 
 
 TEMPLATES = [
     {
@@ -75,12 +78,10 @@ WSGI_APPLICATION = 'app.wsgi.application'
 
 ASGI_APPLICATION = 'app.asgi.application'
 
+
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("redis", 6379)],
-        },
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
     },
 }
 
