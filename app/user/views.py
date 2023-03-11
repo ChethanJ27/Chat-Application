@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login
+from rest_framework.authtoken.models import Token
 
 @csrf_exempt
 def register(request):
@@ -25,21 +26,22 @@ def register(request):
         
     return JsonResponse({'error': 'Invalid Request'})
 
-@csrf_exempt
-def Login(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        print(username,password)
-        if not (username and password):
-            return JsonResponse({'error': 'Please provide all required fields'})
+# @csrf_exempt
+# def Login(request):
+#     if request.method == 'POST':
+#         username = request.POST.get('username')
+#         password = request.POST.get('password')
+#         print(username,password)
+#         if not (username and password):
+#             return JsonResponse({'error': 'Please provide all required fields'})
         
-        user = authenticate(request, username=username, password=password)
-        print(user)
-        if user:
-            login(request, user)
-            return JsonResponse({'success': 'Login successful'})
-        else:
-            return JsonResponse({'error': 'Invalid credentials'})
+#         user = authenticate(request, username=username, password=password)
+#         print(user)
+#         if user:
+#             login(request, user)
+#             Token.create(user=user)
+#             return JsonResponse({'success': 'Login successful'})
+#         else:
+#             return JsonResponse({'error': 'Invalid credentials'})
         
-    return JsonResponse({'error': 'Invalid Request'})
+#     return JsonResponse({'error': 'Invalid Request'})

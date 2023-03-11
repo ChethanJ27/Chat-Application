@@ -18,7 +18,7 @@ def room(request, room_name):
 class History(APIView):
     permission_classes = [IsAuthenticated, ]
 
-    def post(request):
+    def get(request):
         print(request)
         user2_email = request.query_params.get('email')
         print(user2_email)
