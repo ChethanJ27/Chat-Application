@@ -124,10 +124,23 @@ class PersonalChats(WebsocketConsumer):
         self.user_inbox = None
 
     def connect(self):
-        email_address = self.scope["url_route"]["kwargs"]["room_name"]
-        self.user = self.scope['user']
-        if not self.user.is_authenticated:
-            return
+        email_address = self.scope["url_route"]["kwargs"]["email"]
+        print('user2_email',email_address)
+        # Extract the token from the query string
+        # token = self.scope["query_string"].decode().split("=")[1]
+        global tokenIndex
+        tokens = ["e5e775f6d3220629a3184773037b325fc832c2bb","9c2b613f19abba8c3342b03e0f4c8c6441ecd241"]
+        token = tokens[tokenIndex]
+        print('tokenIndex',tokenIndex,token)
+        tokenIndex = (tokenIndex + 1) % len(tokens)
+        print(tokenIndex)
+        
+        # Authenticate the user
+        self.user = async_to_sync(self.get_user)(token)
+        if self.user is None:
+            # Close the WebSocket connection if authentication fails
+            self.close()
+        print('user1_email',self.user.email)
         user1_email = self.user.email
         self.room_name = createRoomId(user1_email=user1_email, user2_email=email_address)
 
@@ -138,50 +151,14 @@ class PersonalChats(WebsocketConsumer):
             self.room_group_name,
             self.channel_name,
         )
-
-        # self.user_inbox = f'inbox_{self.user.username}'
         
         self.accept()
-
-        # send the join event to the room
-        async_to_sync(self.channel_layer.group_send)(
-            self.room_group_name,
-            {
-                'type': 'user_join',
-                'user': self.user.username,
-            }
-        )
-        print("authenticated")
-        self.room.online.add(self.user)
-
-        # create a user inbox for private messages
-        async_to_sync(self.channel_layer.group_add)(
-            self.user_inbox,
-            self.channel_name,
-        )
 
     def disconnect(self, close_code):
         async_to_sync(self.channel_layer.group_discard)(
             self.room_group_name, 
             self.channel_name,
         )
-        
-        if self.user.is_authenticated:
-            # send the leave event to the room
-            async_to_sync(self.channel_layer.group_send)(
-                self.room_group_name,
-                {
-                    'type': 'user_leave',
-                    'user': self.user.username,
-                }
-            )
-            self.room.online.remove(self.user)
-
-            # delete the user inbox for private messages
-            async_to_sync(self.channel_layer.group_discard)(
-                self.user_inbox,
-                self.channel_name,
-            )
 
     def receive(self, text_data):
         text_data_json = json.loads(text_data)
@@ -190,19 +167,36 @@ class PersonalChats(WebsocketConsumer):
         if not self.user.is_authenticated:
             return
         
+        print('before group send',self.user.email)
+        print('group name',self.channel_layer)
+        
         async_to_sync(self.channel_layer.group_send)(
             self.room_group_name, 
             {
                 "type": "chat_message",
-                "user": self.user.username,
+                "username": self.user.username,
                 "message": message
             }
         )
-        Message.objects.create(user=self.user, room= self.room, content=message)
+        Message.objects.create(user=self.user, Room= self.room, content=message)
         return
     
     def chat_message(self, event):
-        message = event["message"]
+        print('in send method')
+        message = event['message']
+        username = event['username']
+        self.send(text_data=json.dumps({
+            'message': message,
+            'username': username
+        }))
+        print('send method completed')
 
-        # Send message to WebSocket
-        self.send(text_data=json.dumps({"message": message}))
+    @database_sync_to_async
+    def get_user(self, token):
+        try:
+            # Get the user associated with the token
+            token_obj = Token.objects.get(key=token)
+            user = User.objects.get(id=token_obj.user_id)
+            return user
+        except Token.DoesNotExist:
+            return None
